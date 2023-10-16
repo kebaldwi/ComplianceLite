@@ -1,3 +1,3 @@
 #!/bin/bash
-python3 /app/compliance_mon.py
+python3 /app/compliance_service.py
 

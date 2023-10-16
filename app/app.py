@@ -108,7 +108,7 @@ def system_reset():
     global SYSTEM_STORE
     if request.method == 'POST':
         #reset system settings to default
-        default_system(CONFIG_PATH, CONFIG_STORE, REPORT_STORE, JSON_STORE, SYSTEM_STORE)
+        default_system_app(CONFIG_PATH, CONFIG_STORE, REPORT_STORE, JSON_STORE, SYSTEM_STORE)
         return redirect(url_for('home')) 
     return render_template("system_resets.html", version=version)
 

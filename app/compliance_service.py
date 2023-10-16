@@ -76,9 +76,9 @@ def data_library(CONFIG_PATH, CONFIG_STORE, REPORT_STORE, JSON_STORE, SYSTEM_STO
     System_Files = os.path.join(CONFIG_PATH, SYSTEM_STORE)
     if not os.path.exists(System_Files):
         os.makedirs(System_Files)
-        shutil.copy("./configuration_template.py","./DNAC-CompMon-Data/System/config-backup.py")
+        shutil.copy("/app/configuration_template.py","/app/DNAC-CompMon-Data/System/config-backup.py")
     else:
-        shutil.copy("./DNAC-CompMon-Data/System/config-backup.py","./configuration_template.py")
+        shutil.copy("/app/DNAC-CompMon-Data/System/config-backup.py","/app/configuration_template.py")
     #os.chdir(Config_Files)
     return Config_Files, Report_Files, Json_Files
 
@@ -149,7 +149,7 @@ def read_recent(DIRECTORY,filename):
     return file
 
 # uncomment the lines for development and testing if required.
-def comp_main():
+def main():
     os_setup()
     AUDIT_DATABASE = {}
     COMPLIANCE_DIRECTORY = "IOSXE"
@@ -157,138 +157,7 @@ def comp_main():
     AUDIT_DATABASE = all_files_into_dict(COMP_CHECKS)
     #print(f"First the Audit Rules from Prime loaded for processing against configs\n\n",AUDIT_DATABASE)
     #pause()   
-    Config_Files, Report_Files, Json_Files = data_library(CONFIG_PATH,CONFIG_STORE,REPORT_STORE,JSON_STORE,SYSTEM_STORE)
-    os.chdir(Config_Files)
-    temp_run_config = "temp_run_config.txt"
-    # logging, debug level, to file {application_run.log}
-    logging.basicConfig(
-        filename='/app/DNAC-CompMon-Data/System/application_run.log',
-        level=logging.DEBUG,
-        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S')
-    #print("DNA Center Compliance Monitor:\n")
-    #print("We are going to collect all configurations for routers and switches your DNA Center")
-    #print("\n\nDNA CENTER INTEROGATED: " + DNAC_FQDN + " @ IP ADDRESS: " + DNAC_IP)
-    #print("\n\nThis is the Token we will use for Authentication:")
-    dnac_token = dnac_apis.get_dnac_jwt_token(DNAC_AUTH)
-    #print('\nDNA Center AUTH Token: \n', dnac_token, '\n')
-    #pause()   
-    # get the DNA Center managed devices list (excluded wireless, for one location)
-    all_devices_info = dnac_apis.get_all_device_info(dnac_token)
-    all_devices_hostnames = []
-    for device in all_devices_info:
-        if device['family'] == 'Switches and Hubs' or device['family'] == 'Routers':
-            all_devices_hostnames.append(device['hostname'])
-    # Get the current date time in UTC timezone
-    now_utc = datetime.datetime.now(pytz.UTC)
-    # Convert to timezone
-    time_zone = 'US/Eastern'
-    tz = pytz.timezone(time_zone)
-    now_tz = now_utc.astimezone(tz)
-    # Format the date and time string
-    date_str = now_tz.strftime('%m/%d/%Y').replace('/', '_')
-    time_str = now_tz.strftime('%H:%M:%S').replace(':', '_')
-    # get the config files, compare with existing (if one existing). Save new config if file not existing.
-    for device in all_devices_hostnames:
-        device_run_config = dnac_apis.get_device_config(device, dnac_token)
-        filename = str(device) + '_' + date_str + '_run_config.txt'
-        # save the running config to a temp file
-        f_temp = open(temp_run_config, 'w')
-        f_temp.write(device_run_config)
-        f_temp.seek(0)  # reset the file pointer to 0
-        f_temp.close()
-        # check for existing configuration file
-        # if yes; run the check for changes; diff function
-        # if not; save; run the diff function
-        # expected result create local config "database"
-        # first get most recent config if exists
-        recent_filename = read_recent(APP_DIRECTORY,filename)
-        if os.path.isfile(recent_filename):
-            diff = compare_configs(recent_filename, temp_run_config)
-            if diff != '':
-                # retrieve the device location using DNA C REST APIs
-                location = dnac_apis.get_device_location(device, dnac_token)
-                # find the users that made configuration changes
-                with open(temp_run_config, 'r') as f:
-                    user_info = 'User info no available'
-                    for line in f:
-                        if 'Last configuration change' in line:
-                            user_info = line
-                # define the incident description and comment
-                short_description = 'Configuration Change Alert - ' + device
-                comment = 'The device with the name: ' + device + '\nhas detected a Configuration Change'
-                #print(comment)
-                # get the device health from DNA Center
-                current_time_epoch = utils.get_epoch_current_time()
-                device_details = dnac_apis.get_device_health(device, current_time_epoch, dnac_token)
-                device_sn = device_details['serialNumber']
-                device_mngmnt_ip_address = device_details['managementIpAddr']
-                device_family = device_details['platformId']
-                device_os_info = device_details['osType'] + ',  ' + device_details['softwareVersion']
-                device_health = device_details['overallHealth']
-                updated_comment = '\nDevice location: ' + location
-                updated_comment += '\nDevice family: ' + device_family
-                updated_comment += '\nDevice OS info: ' + device_os_info
-                updated_comment += '\nDevice S/N: ' + device_sn
-                updated_comment += '\nDevice Health: ' + str(device_health) + '/10'
-                updated_comment += '\nDevice management IP address: ' + device_mngmnt_ip_address
-                #print(updated_comment)
-                updated_comment = '\nThe configuration changes are\n' + diff + '\n\n' + user_info
-                #print(updated_comment)
-                # new version discovered, save the running configuration to a file in the folder with the name
-                f_config = open(filename, 'w')
-                f_config.write(device_run_config)
-                f_config.seek(0)
-                f_config.close()
-                # retrieve the device management IP address
-                device_mngmnt_ip_address = dnac_apis.get_device_management_ip(device, dnac_token)
-                DeviceConfig = "changed"
-                #Device: New config version stored
-            else:
-                #Device: No configuration changes detected
-                if filename != recent_filename:
-                    # version saved, save the running configuration to a file in the folder with the name
-                    f_config = open(filename, 'w')
-                    f_config.write(device_run_config)
-                    f_config.seek(0)
-                    f_config.close()
-                    # retrieve the device management IP address
-                    device_mngmnt_ip_address = dnac_apis.get_device_management_ip(device, dnac_token)
-                    #Device: config stored
-                else:
-                    DeviceConfig = "same"
-                    #Device: config the same
-        else:
-            # new device discovered, save the running configuration to a file in the folder with the name
-            # {Config_Files}
-            f_config = open(filename, 'w')
-            f_config.write(device_run_config)
-            f_config.seek(0)
-            f_config.close()
-            # retrieve the device management IP address
-            device_mngmnt_ip_address = dnac_apis.get_device_management_ip(device, dnac_token)
-            DeviceConfig = "new"
-            #Device: New device discovered
-    #pause()
-    report = compliance_run("./", AUDIT_DATABASE, Report_Files, Json_Files)
-    if SMTP_FLAG == "True":
-        system_notification_app("/app/DNAC-CompMon-Data/Reports/")
-        outcome = "SUCCESS-EMAIL"
-    else:
-        outcome = "SUCCESS-NOEMAIL"
-        #Unable to send Notification Email - as SMTP settings are not set
-    return outcome
-
-# uncomment the lines for development and testing if required.
-def main():
-    os_setup()
-    AUDIT_DATABASE = {}
-    COMPLIANCE_DIRECTORY = "IOSXE"
-    COMP_CHECKS = os.path.join(CONFIG_PATH, COMPLIANCE_STORE, COMPLIANCE_DIRECTORY)
-    AUDIT_DATABASE = all_files_into_dict(COMP_CHECKS)
-    #print(f"First the Audit Rules from Prime loaded for processing against configs\n\n",AUDIT_DATABASE)
-    #pause()   
-    Config_Files, Report_Files, Json_Files = data_library(CONFIG_PATH,CONFIG_STORE,REPORT_STORE,JSON_STORE,SYSTEM_STORE)
+    Config_Files, Report_Files, Json_Files = data_library(APP_DIRECTORY,CONFIG_STORE,REPORT_STORE,JSON_STORE,SYSTEM_STORE)
     os.chdir(Config_Files)
     temp_run_config = "temp_run_config.txt"
     # logging, debug level, to file {application_run.log}
@@ -401,6 +270,8 @@ def main():
             DeviceConfig = "new"
             #Device: New device discovered
     #pause()
+    Report_Files = REPORT_STORE
+    Json_Files = JSON_STORE
     report = compliance_run("./", AUDIT_DATABASE, Report_Files, Json_Files)
     if SMTP_FLAG == "True":
         system_notification_app("../../DNAC-CompMon-Data/Reports/")
