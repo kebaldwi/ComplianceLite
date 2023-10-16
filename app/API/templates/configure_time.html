@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Compliance Lite - Time Configuration</title>
+  </head>
+  <body>
+    {% extends "template.html" %}
+    {% block content %}
+
+      <h1 style="margin-left: 40px">{% block title %} TIME Zone Settings {% endblock %}</h1>
+      <div align="left" class="container">
+        <strong><nav>
+        <font size="3px">
+        <form method="post" style="margin-left: 50px">
+            <label for="title">Select TIME Zone:</label>
+            <br><p></p>
+            <label for="title">The current Time Zone: {{ time_zone }}</label>
+            <br><p></p>
+            <label for="time_zone">Time Zone:</label>
+            <select name="time_zone" id="time_zone">
+                {% for tz in time_zones %}
+                <option value="{{ tz }}">{{ tz }}</option>
+                {% endfor %}
+            </select>
+            <br><p></p>
+            <button type="submit">Save</button>
+        </form>
+        </font>
+        </nav></strong>
+      </div>
+      
+    {% endblock %}
+  </body>
+</html>
+

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Compliance Lite - Email Configuration</title>
+  </head>
+  <body>
+    {% extends "template.html" %}
+    {% block content %}
+
+      <h1 style="margin-left: 40px">{% block title %} Email Settings {% endblock %}</h1>
+      <div align="left" class="container">
+        <strong><nav>
+        <font size="3px">
+        <form method="post" style="margin-left: 50px">
+            <label for="title">Email and SMTP Settings</label>
+            <br><p></p>
+            <label for="email_address">Email Address: </label>
+            <input type="email_address" name="email_address"
+                   placeholder="{{ email_address }}"
+                   value="{{ request.form['email_address'] }}"></input>
+            <br><p></p>
+            <label for="email_password">Password: </label>
+            <input type="email_password" name="email_password"
+                   placeholder="{{ email_password }}"
+                   value="{{ request.form['email_password'] }}"></input>
+            <br><p></p>
+            <label for="smtp_server">SMTP Server: </label>
+            <input type="smtp_server" name="smtp_server"
+                   placeholder="{{ smtp_server }}"
+                   value="{{ request.form['smtp_server'] }}">
+            </input>
+            <br><p></p>
+            <label for="smtp_port">SMTP Port: </label>
+            <input type="smtp_port" name="smtp_port"
+                   placeholder="{{ smtp_port }}"
+                   value="{{ request.form['smtp_port'] }}">
+            </input>
+            <br><p></p>
+            <label for="email_recipient">Email Recipient: </label>
+            <input type="email_recipient" name="email_recipient"
+                   placeholder="{{ email_recipient }}"
+                   value="{{ request.form['email_recipient'] }}"></input>
+            <br><p></p>
+            <button type="submit">Save</button>
+        </form>
+        </font>
+        </nav></strong>
+      </div>
+      
+    {% endblock %}
+  </body>
+</html>
+

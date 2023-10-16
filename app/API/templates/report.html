@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <title>Compliance Lite - Reports</title>
+  </head>
+  <body>
+    {% extends "template.html" %}
+    {% block content %}
+
+      <h1 style="margin-left: 40px">Compliance Lite - Reports</h1>
+      <p style="margin-left: 50px"> The Reports presented below have hyperlinks which enable a direct download. </p>
+      <p style="margin-left: 50px">
+      {% for item in reports.split("\n") %}
+        {% for thing in item.split(" ") %}
+          {% if ".pdf" in thing %}
+            <a href="/download/{% print(thing) %} " target="_blank">{% print(thing) %}</a></br>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
+      </p>  
+      <form method="post" style="margin-left: 50px">
+        <p> Click submit to run a new report </p>
+        <button type="submit">Create Report</button>
+      </form>
+
+  {% endblock %}
+  </body>
+</html>

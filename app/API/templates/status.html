@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Compliance Lite - Status</title>
+  </head>
+  <body>
+    {% extends "template.html" %}
+    {% block content %}
+    
+    <h1 style="margin-left: 40px"> Compliance Lite </h1>
+    <p style="margin-left: 50px"> API Check: {% print(testing) %} </p>
+    <p style="margin-left: 50px"> {% for item in contents.split("\n") %}
+    {% print(item) %} <br>
+    {% endfor %}
+    </p>
+      
+    {% endblock %}
+  </body>
+</html>

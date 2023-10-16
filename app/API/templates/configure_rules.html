@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Compliance Lite - Import Rules</title>
+  </head>
+  <body>
+    {% extends "template.html" %}
+    {% block content %}
+
+      <h1 style="margin-left: 40px">{% block title %} Import Rules from Prime {% endblock %}</h1>
+      <div align="left" class="container">
+        <strong><nav>
+        <font size="3px">
+        <form method="post" action"/configure_rules" enctype="multipart/form-data" style="margin-left: 50px">
+            <label for="title">File Upload and Extraction:</label>
+            <br><p></p>
+            <label for="file">File to be extracted:</label>
+            <input type="file" name="file">
+            <br><p></p>
+            <button type="submit">Upload</button>
+        </form>
+        </font>
+        </nav></strong>
+      </div>
+      
+    {% endblock %}
+  </body>
+</html>
+

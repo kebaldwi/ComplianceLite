@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Compliance Lite - Reset System</title>
+  </head>
+  <body>
+    {% extends "template.html" %}
+    {% block content %}
+
+      <h1 style="margin-left: 40px">{% block title %} Compliance Lite System Reset {% endblock %}</h1>
+      <p style="margin-left: 40px"> This function resets the connection settings </p>
+      <div align="left" class="container">
+        <strong><nav>
+        <font size="3px">
+        <form method="post" style="margin-left: 50px">
+            <label for="title">System Reset</label>
+            <br><p></p>
+            <button type="submit">Default Reset</button>
+        </form>
+        </font>
+        </nav></strong>
+      </div>
+      
+    {% endblock %}
+  </body>
+</html>
+

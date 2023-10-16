@@ -1,0 +1,59 @@
+ <!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<title>Page Title</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* Style the body */
+body {
+  font-family: Arial;
+  margin: 0;
+}
+
+/* Header/Logo Title */
+.header {
+  padding: 10px;
+  text-align: center;
+  background: #27AE60;
+  color: white;
+  font-size: 10px;
+  
+  /* Container/Logo Title */
+.container {
+  padding: 10px;
+  text-align: left;
+  background: #27AE60;
+  color: white;
+  font-size: 10px;
+}
+
+/* Page Content */
+.content {padding:20px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1 align="left">DNA Center "Compliance Lite" Container</h1>
+        <div align="left" class="container">
+        <strong><nav>
+        <font size="3px">
+        <a href="{{ url_for('home') }}">Home</a>
+        <a href="{{ url_for('serve_report') }}">Reports</a>
+        <a href="{{ url_for('about') }}">About</a>
+        <a href="{{ url_for('status') }}">Status</a>
+        <a href="{{ url_for('configure_system') }}">Configure Container</a>
+        </font>
+        <font size="1px">
+        <a href="http://localhost:8080/swagger-ui/" target="_blank">swagger-ui</a>
+        </font>
+        </nav></strong>
+      </div>
+</div>
+    
+    {% block content %}
+    {% endblock %}
+    
+ </body>
+</html>
