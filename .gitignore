@@ -1,8 +1,18 @@
 
 .DS_Store
 app/.DS_Store
+app/__pycache__/.DS_Store
 app/API/.DS_Store
+app/API/__pycache__/.DS_Store
+app/API/ClusterHealth/.DS_Store
+app/API/ClusterHealth/__pycache__/.DS_Store
+app/API/DNACenterCompliance/__pycache__/.DS_Store
+app/API/static/.DS_Store
+app/API/templates/.DS_Store
 app/DNAC-CompMon-Data/.DS_Store
-app/.DS_Store
-.DS_Store
-.DS_Store
+app/DNAC-CompMon-Data/Configs/.DS_Store
+app/DNAC-CompMon-Data/JSONdata/.DS_Store
+app/DNAC-CompMon-Data/Reports/.DS_Store
+app/DNAC-CompMon-Data/System/.DS_Store
+app/PrimeComplianceChecks/.DS_Store
+app/Roadmap/.DS_Store
