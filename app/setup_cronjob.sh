@@ -28,10 +28,10 @@ echo "$cron_command" > /app/DNAC-CompMon-Data/System/cronjob
 crontab /app/DNAC-CompMon-Data/System/cronjob
 
 # Remove the temporary file
-#rm /tmp/cronjob
+#rm /app/DNAC-CompMon-Data/System/cronjob
 
 # Enable the cron service
-cron
+service cron start
 
 # Pause for 5 seconds to allow the gunicorn process to restart
 sleep 5

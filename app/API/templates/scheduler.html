@@ -8,10 +8,18 @@
     {% extends "template.html" %}
     {% block content %}
 
-      <h1 style="margin-left: 40px">{% block title %} Compliance Lite Scheduling Setup {% endblock %}</h1>
-      <h4 style="margin-left: 50px">{% print(message) %}</h4>
-      <div align="left" class="container">
-        <strong><nav>
+    <h1 style="margin-left: 40px">{% block title %} Compliance Lite Scheduling Setup {% endblock %}</h1>
+    <div style="display: flex; align-items: center">
+      <h4 style="margin-left: 50px; padding-right: 30px;">{% print(message) %}</h4>
+      {% if "Service Running" in message  %}
+      <form action="/delete" method="POST">
+        <button type="submit">Delete</button>
+      </form>
+      {% endif %}
+    </div>
+
+    <div align="left" class="container">
+      <strong><nav>
         <font size="3px" >
           <form action="/scheduler" method="POST" style="margin-left: 50px">
             <label for="schedule_type">Select schedule type:</label>

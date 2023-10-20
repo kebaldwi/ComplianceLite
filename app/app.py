@@ -256,7 +256,38 @@ def download_file(filename):
 
 @app.route("/scheduler", methods=['GET', 'POST'])
 def scheduler_app():
-    message = " "
+    # Check if the cron job is configured
+    try:
+        result = subprocess.run(['service', 'cron', 'status'], stdout=subprocess.PIPE)
+        status = result.stdout.decode('utf-8').strip()
+        # If the cron service is running, get the next scheduled run time
+        if 'not' not in status:
+            result = subprocess.run(['crontab', '-l'], stdout=subprocess.PIPE)
+            content = result.stdout.decode('utf-8')
+            # Check if the cron job runs every day or at a specific day and time
+            if '* * *' in content:
+                schedule = 'Daily'
+                match = re.match(r'^(\d{1,2})\s+(\d{1,2})', content)
+                if match:
+                    # Display the hours and minutes
+                    read_hours = match.group(2)
+                    read_minutes = match.group(1)
+                next_run_time_str = read_hours + ":" + read_minutes + " hrs"
+            else:
+                schedule = 'Weekly'
+                match = re.match(r'^(\d{1,2})\s+(\d{1,2}).*(mon|tue|wed|thu|fri)', content)
+                if match:
+                    # Display the hours and minutes
+                    read_hours = match.group(2)
+                    read_minutes = match.group(1)
+                    read_day = match.group(3)
+                next_run_time_str = read_hours + ":" + read_minutes + " hrs on " + read_day
+            # Pass the status, schedule, and next run time to the HTML template
+            message = 'Service Running: ' + schedule + " @ " + next_run_time_str
+        else:
+            message = 'Service Not Running: '
+    except FileNotFoundError:
+        message = 'Service Not Configured: '
     time_options = []
     for hour in range(24):
         for minute in range(0,60,15):
@@ -288,6 +319,48 @@ def scheduler_app():
             # Add a three-second pause
             time.sleep(3)
     return render_template("scheduler.html",time_options=time_options,days_of_week=days_of_week,message=message, version=version)
+
+@app.route('/delete', methods=['POST'])
+def delete():
+    # Call the bash script to shut down and delete the cron job
+    subprocess.run(['bash', 'delete_cronjob.sh']) 
+    # Redirect to a success page or display a success message
+    return redirect(url_for('status')) 
+
+@app.route('/devpage')
+def display_cron_job():
+    # Check if the cron job is configured
+    try:
+        result = subprocess.run(['service', 'cron', 'status'], stdout=subprocess.PIPE)
+        status = result.stdout.decode('utf-8').strip()
+        # If the cron service is running, get the next scheduled run time
+        if 'not' not in status:
+            result = subprocess.run(['crontab', '-l'], stdout=subprocess.PIPE)
+            content = result.stdout.decode('utf-8')
+            # Check if the cron job runs every day or at a specific day and time
+            if '* * *' in content:
+                schedule = 'Daily'
+                match = re.match(r'^(\d{1,2})\s+(\d{1,2})', content)
+                if match:
+                    # Display the hours and minutes
+                    read_hours = match.group(2)
+                    read_minutes = match.group(1)
+                next_run_time_str = read_hours + ":" + read_minutes
+            else:
+                schedule = 'Weekly'
+                match = re.match(r'^(\d{1,2})\s+(\d{1,2}).*(mon|tue|wed|thu|fri)', content)
+                if match:
+                    # Display the hours and minutes
+                    read_hours = match.group(2)
+                    read_minutes = match.group(1)
+                    read_day = match.group(3)
+                next_run_time_str = read_hours + ":" + read_minutes + " on " + read_day
+            # Pass the status, schedule, and next run time to the HTML template
+            return render_template('devpage.html', status='Running', schedule=schedule, next_run_time=next_run_time_str)
+        else:
+            return render_template('devpage.html', status='Not running', schedule='', next_run_time='')
+    except FileNotFoundError:
+        return render_template('devpage.html', status='Not Configured', schedule='', next_run_time='')
 
 @app.route("/status")
 def status():

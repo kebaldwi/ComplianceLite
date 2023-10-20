@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cron Job</title>
+</head>
+<body>
+    <h1>Cron Job</h1>
+    <p>Status: {{ status }}</p>
+    {% if status == 'Running' %}
+        <p>Schedule: {{ schedule }}</p>
+        <p>Next run time: {{ next_run_time }}</p>
+    {% endif %}
+</body>
+</html>
