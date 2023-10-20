@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>Compliance Lite - Service Scheduler</title>
+  </head>
+  <body>
+    {% extends "template.html" %}
+    {% block content %}
+
+      <h1 style="margin-left: 40px">{% block title %} Compliance Lite Scheduling Setup {% endblock %}</h1>
+      <h4 style="margin-left: 50px">{% print(message) %}</h4>
+      <div align="left" class="container">
+        <strong><nav>
+        <font size="3px" >
+          <form action="/scheduler" method="POST" style="margin-left: 50px">
+            <label for="schedule_type">Select schedule type:</label>
+            <select name="schedule_type" id="schedule_type" onchange="toggleOptions()">
+                <option value="" style="color: grey;" selected>Select</option>
+                <option value="daily">Daily</option> - specific time of day
+                <option value="weekly">Weekly</option> - specific time and day of week
+            </select>
+            <br><br>
+
+            <div id="daily_options" style="display: none;">
+                <label for="daily_time_of_day">Select time of day:</label>
+                <select name="daily_time_of_day" id="daily_time_of_day">
+                  {% for time in time_options %}
+                    <option value="{{ time }}">{{ time }}</option>
+                  {% endfor %}
+                </select>
+            </div>
+
+            <div id="weekly_options" style="display: none;">
+                <label for="day_of_week">Select day of week:</label>
+                <select name="day_of_week" id="day_of_week">
+                  {% for day in days_of_week %}
+                    <option value="{{ day }}">{{ day }}</option>
+                  {% endfor %}
+                </select>
+    
+                <label for="weekly_time_of_day">Select time of day:</label>
+                <select name="weekly_time_of_day" id="weekly_time_of_day">
+                  {% for time in time_options %}
+                    <option value="{{ time }}">{{ time }}</option>
+                  {% endfor %}
+                </select>
+            </div>
+
+            <br><p></p>
+            <button type="submit">Schedule</button>
+          </form>
+        </font>
+        </nav></strong>
+      </div>
+
+      <script>
+        function toggleOptions() {
+            var scheduleType = document.getElementById("schedule_type").value;
+            var dailyOptions = document.getElementById("daily_options");
+            var weeklyOptions = document.getElementById("weekly_options");
+
+            if (scheduleType === "daily") {
+                dailyOptions.style.display = "block";
+                weeklyOptions.style.display = "none";
+            } else if (scheduleType === "weekly") {
+                dailyOptions.style.display = "none";
+                weeklyOptions.style.display = "block";
+            } else {
+                dailyOptions.style.display = "none";
+                weeklyOptions.style.display = "none";
+            }
+        }
+      </script>
+
+    {% endblock %}
+  </body>
+</html>
+

@@ -2,6 +2,7 @@ from flask import Flask, render_template, send_from_directory, request, url_for,
 import json
 import requests
 import time
+import datetime
 import subprocess
 import shutil
 import pytz
@@ -98,7 +99,7 @@ def home():
 def about():
     return render_template("about.html", version=version)
 
-@app.route("/system_resets", methods=('GET', 'POST'))
+@app.route("/system_resets", methods=['GET', 'POST'])
 #modified to use existing code
 def system_reset():
     global CONFIG_PATH
@@ -118,7 +119,7 @@ def system_reset():
         return redirect(url_for('home')) 
     return render_template("system_resets.html", version=version)
 
-@app.route("/configure_system", methods=('GET', 'POST'))
+@app.route("/configure_system", methods=['GET', 'POST'])
 #modified to use existing code
 def configure_system():
     global DNAC_IP
@@ -139,7 +140,6 @@ def configure_system():
             flash('Password is required!')
         else:
             DNAC_setup_app(PATH,DNAC_IP,DNAC_USER,DNAC_PASS)
-            # Execute the shell script to restart the Flask application
             # Add a two-second pause
             time.sleep(2)
             subprocess.run(['bash', 'restart_app.sh'])
@@ -148,7 +148,7 @@ def configure_system():
             return redirect(url_for('status'))    
     return render_template("configure_system.html",ip_address=DNAC_IP,username=DNAC_USER,password=DNAC_PASS, version=version)
 
-@app.route("/configure_email", methods=('GET', 'POST'))
+@app.route("/configure_email", methods=['GET', 'POST'])
 #modified to use existing code
 def configure_email():
     global SMTP_EMAIL
@@ -180,7 +180,6 @@ def configure_email():
         else:
             SMTP_FLAG = True
             SMTP_setup_app(PATH,SMTP_EMAIL,SMTP_PASS,SMTP_SERVER,SMTP_PORT,SMTP_FLAG,NOTIFICATION_EMAIL)
-            # Execute the shell script to restart the Flask application
             # Add a two-second pause
             time.sleep(2)
             subprocess.run(['bash', 'restart_app.sh'])
@@ -189,7 +188,7 @@ def configure_email():
             return redirect(url_for('status'))    
     return render_template("configure_email.html",email_address=SMTP_EMAIL,email_password=SMTP_PASS,smtp_server=SMTP_SERVER,smtp_port=SMTP_PORT,email_recipient=NOTIFICATION_EMAIL, version=version)
 
-@app.route("/configure_time", methods=('GET', 'POST'))
+@app.route("/configure_time", methods=['GET', 'POST'])
 #modified to use existing code
 def configure_tzone():
     global TIME_ZONE
@@ -201,7 +200,6 @@ def configure_tzone():
             flash('Time Zone is required!')
         else:
             TZONE_setup_app(PATH,TIME_ZONE)
-            # Execute the shell script to restart the Flask application
             # Add a two-second pause
             time.sleep(2)
             subprocess.run(['bash', 'restart_app.sh'])
@@ -211,7 +209,7 @@ def configure_tzone():
     time_zones = pytz.all_timezones
     return render_template("configure_time.html",time_zone=TIME_ZONE,time_zones=time_zones, version=version)
 
-@app.route("/configure_rules", methods=('GET', 'POST'))
+@app.route("/configure_rules", methods=['GET', 'POST'])
 #modified to use existing code
 def configure_rules():
     if request.method == 'POST':
@@ -238,7 +236,7 @@ def configure_rules():
             outcome = "FAILURE"
     return render_template("configure_rules.html", version=version)
 
-@app.route("/report", methods=('GET', 'POST'))
+@app.route("/report", methods=['GET', 'POST'])
 #modified to use existing code
 def serve_report():
     if request.method == 'POST':
@@ -256,9 +254,40 @@ def download_file(filename):
     # use send_from_directory to serve the file
     return send_from_directory(external_directory, filename, as_attachment=True)
 
-@app.route("/test")
-def test():
-    return render_template("test.html")
+@app.route("/scheduler", methods=['GET', 'POST'])
+def scheduler_app():
+    message = " "
+    time_options = []
+    for hour in range(24):
+        for minute in range(0,60,15):
+            time_options.append(f'{hour:02d}:{minute:02d}')
+    days_of_week = []
+    today = datetime.date.today()
+    for i in range(7):
+        day = today + datetime.timedelta(days=i)
+        days_of_week.append(day.strftime('%A'))
+    if request.method == 'POST':
+        schedule_type = request.form.get('schedule_type')
+        if schedule_type == 'daily':
+            time_of_day = request.form.get('daily_time_of_day')
+            hour_output, minute_output = time_of_day.split(":")
+            truncated_day = "none"
+            message = 'you selected: ' + schedule_type + " and " + time_of_day + "HRS every day."
+            # Execute the shell script to set up the cron job
+            subprocess.run(['bash', 'setup_cronjob.sh', schedule_type, hour_output, minute_output, truncated_day])
+            # Add a three-second pause
+            time.sleep(3)
+        elif schedule_type == 'weekly':
+            time_of_day = request.form.get('weekly_time_of_day')
+            day_of_week = request.form.get('day_of_week')
+            hour_output, minute_output = time_of_day.split(":")
+            truncated_day = day_of_week[:3].lower()
+            message = 'Service Created: ' + schedule_type + " " + time_of_day + " hrs every " + day_of_week
+            # Execute the shell script to set up the cron job
+            subprocess.run(['bash', 'setup_cronjob.sh', schedule_type, hour_output, minute_output, truncated_day])
+            # Add a three-second pause
+            time.sleep(3)
+    return render_template("scheduler.html",time_options=time_options,days_of_week=days_of_week,message=message, version=version)
 
 @app.route("/status")
 def status():
