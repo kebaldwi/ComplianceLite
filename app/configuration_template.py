@@ -16,19 +16,19 @@ import socket
 
 # Update this section with the DNA Center server info and user information
 DNAC_IP = '10.10.10.10'
-DNAC_USER = 'user'
-DNAC_PASS = 'C1sco12345'
+DNAC_USER = 'non_user'
+DNAC_PASS = 'nopassword'
 DNAC_URL = 'https://' + DNAC_IP
 DNAC_FQDN = socket.getfqdn(DNAC_IP)
 
 # Update this section for Email Notification 
-SMTP_SERVER = "smtp.gmail.com"
+SMTP_SERVER = "smtp.site.com"
 SMTP_PORT = 587
 # Enter your address
-SMTP_EMAIL = "sender@gmail.com"
+SMTP_EMAIL = "sender@site.com"
 SMTP_PASS = "16-digit-app-password"
 # Enter receiver address
-NOTIFICATION_EMAIL = "receiver@gmail.com"
+NOTIFICATION_EMAIL = "receiver@site.com"
 # SMTP unset FLAG
 SMTP_FLAG = False
 

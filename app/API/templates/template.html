@@ -149,7 +149,17 @@ body {margin:0;font-family:Arial}
 
 <div class="topnav" id="myTopnav">
   <a href="/" class="active">Home</a>
-  <a href="/report">Reports</a>
+  <div class="dropdown">
+    <button class="dropbtn">Compliance 
+      <i class="fa fa-caret-down"></i>
+    </button>
+    <div class="dropdown-content">
+      <a href="/summary_report">Summary Dashboard</a>
+      <a href="/devices">Configuration Archive</a>
+      <a href="/rule_manager">Rule Manager</a>
+      <a href="/report">Reports</a>
+    </div>
+  </div> 
   <div class="dropdown">
     <button class="dropbtn">System 
       <i class="fa fa-caret-down"></i>
@@ -166,7 +176,6 @@ body {margin:0;font-family:Arial}
   </div> 
   <a href="/swagger-ui/" target="_blank">Swagger-UI</a>
   <a href="/about">About</a>
-  <a href="/devpage">DevPage</a>
   <a href="javascript:void(0);" style="font-size:15px;" class="icon" onclick="myFunction()">&#9776;</a>
   <span style="float: right; position: relative; padding-right: 17px; padding: 12px 16px; font-family: Arial; font-size: 17px; color: white;">Version: {{version}}</span>
 </div>

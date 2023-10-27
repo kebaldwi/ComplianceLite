@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <title>Compliance Lite - Rule Manager</title>
+  </head>
+
+  <script>
+    function disableButton() {
+      document.getElementById("Report").disabled = true;
+    }
+  </script>
+
+  <body>
+    {% extends "template.html" %}
+    {% block content %}
+
+    <h1 style="margin-left: 40px">Compliance Lite - Rule Manager</h1>
+    <table style="margin-left: 60px">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Description</th>
+          <th>Filename</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for xml_file in xml_data %}
+        <tr>
+          <td>{{ xml_file.title }}</td>
+          <td>{{ xml_file.description }}</td>
+          <td><a href="/download/{% print(xml_file.filename) %} " target="_blank">{{ xml_file.filename }}</a></td>
+          <td>
+            <form action="/delete_rule" method="POST">
+              <input type="hidden" name="filename" value="{{ xml_file.filename }}">
+              <button type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% endblock %}
+  </body>
+</html>
+

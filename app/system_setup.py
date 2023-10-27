@@ -28,6 +28,7 @@ import getpass
 import zipfile
 import io
 import pytz
+import re
 from service_scheduler import *
 from configuration_template import TIME_ZONE, CONFIG_PATH, COMPLIANCE_STORE
 
@@ -164,6 +165,63 @@ def DNAC_setup_app(file_path,dnac_ip,dnac_usr,dnac_pwd):
         break
     return outcome
 
+# This function sets the DNA Center connection details
+def DNAC_status_app(dnac_ip,dnac_usr,dnac_pwd):
+    # Define the path to the Python file to update
+    # Loop until valid input is given or cancel is entered
+    conn_outcome = "NotConnected"
+    cred_outcome = "InvalidCred"
+    dns_outcome = "InvalidDNS"
+    ping_outcome = "InvalidPing"
+    ip_outcome = "InvalidIP"
+    while True:
+        # Test for a valid IP address
+        try:
+            socket.inet_aton(dnac_ip)
+            ip_outcome = "ValidIP"
+        except socket.error:
+            #Invalid IP address. Please try again.
+            ip_outcome = "InvalidIP"
+            break
+        # Test the connection to the server with a ping
+        ping_cmd = ["ping", "-c", "1", "-W", "1", dnac_ip]
+        ping_result = subprocess.run(ping_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if ping_result.returncode != 0:
+            #Server is not reachable. Please try again.
+            ping_outcome = "InvalidPing"
+            break
+        # Do a DNS lookup for the FQDN of the server
+        ping_outcome = "ValidPing"
+        try:
+            dnac_fqdn = socket.getfqdn(dnac_ip)
+            dns_lookup = socket.gethostbyname(dnac_fqdn)
+            dns_outcome = "ValidDNS"
+            if dns_lookup != dnac_ip:
+                #DNS lookup failed. Please try again.
+                dns_outcome = "InvalidDNS"
+                break
+        except socket.error:
+            #DNS lookup failed. Please try again.
+            dns_outcome = "InvalidDNS"
+            break
+        #Try connecting to DNA Center
+        try:
+            DNAC_AUTH = HTTPBasicAuth(dnac_usr, dnac_pwd)
+            DNAC_URL = "https://" + dnac_ip
+            dnac_token = dnac_apis.test_dnac_jwt_token(DNAC_URL, DNAC_AUTH)
+            conn_outcome = "Connected"
+            cred_outcome = "ValidCred"
+            #DNA Center connection test passed.
+        except:
+            #Credentials failed. Please try again.
+            conn_outcome = "NotConnected"
+            cred_outcome = "InvalidCred"
+            break
+        # Print a success message and exit the loop
+        break
+    outcome = [conn_outcome,cred_outcome,dns_outcome,ping_outcome,ip_outcome]
+    return outcome
+
 def SMTP_setup(file_path):
     # Define the typical gmail server settings
     smtp_server = "smtp.gmail.com"
@@ -293,6 +351,36 @@ def SMTP_setup_app(file_path,email_address,email_password,smtp_server,smtp_port,
         outcome = "SUCCESS"
         shutil.copy("/app/configuration_template.py","/app/DNAC-CompMon-Data/System/config-backup.py")
         break
+    return outcome
+
+def SMTP_status_app(email_address,email_password,smtp_server,smtp_port):
+    # Define the path to the Python file to update
+    # Loop until valid input is given or cancel is entered
+    smtp_conn = "NotConnected"
+    smtp_cred = "InvalidCred"
+    while True:
+        # Test the connection to the SMTP server
+        try:
+            context = ssl.create_default_context()
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls(context=context)
+                server.login(email_address, email_password)
+            smtp_conn = "Connected"
+            smtp_cred = "ValidAUTH"
+        except smtplib.SMTPAuthenticationError:
+            #Authentication failed. Please try again.
+            smtp_cred = "InvalidSettings"
+            break
+        except:
+            #Connection to SMTP server failed. Please try again.
+            smtp_cred = "InvalidSettings"
+            break
+        # Print a success message and exit the loop
+        # Test email sent successfully!
+        # All tests pass, replace lines in the Python file
+        smtp_conn = "Connected"
+        break
+    outcome = [smtp_conn,smtp_cred]
     return outcome
 
 # This function sets the DNA Center Time Zone details
@@ -436,6 +524,16 @@ def PRIME_import(CONFIG_PATH, COMPLIANCE_STORE):
             break
     return
 
+def PRIME_import_status():
+    directory_path = '/app/PrimeComplianceChecks'  
+    # Get the list of directories within the given directory
+    directories = [name for name in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, name))]
+    if len(directories) > 0:
+        response = directories[0]
+    else:
+        response = "Not Imported"
+    return response
+
 def default_system(CONFIG_PATH, CONFIG_STORE, REPORT_STORE, JSON_STORE, SYSTEM_STORE):
     Report_Files = os.path.join(CONFIG_PATH, REPORT_STORE)
     if not os.path.exists(Report_Files):
@@ -471,6 +569,54 @@ def default_system_app(CONFIG_PATH, CONFIG_STORE, REPORT_STORE, JSON_STORE, SYST
     shutil.copy("/app/config_template_dont_delete.py","/app/configuration_template.py")
     #os.chdir(Config_Files)
     return Config_Files, Report_Files, Json_Files
+
+def scheduler_status_app():
+    # Check if the cron job is configured
+    try:
+        result = subprocess.run(['service', 'cron', 'status'], stdout=subprocess.PIPE)
+        status = result.stdout.decode('utf-8').strip()
+        # If the cron service is running, set the status
+        if 'not' not in status:
+            result = subprocess.run(['crontab', '-l'], stdout=subprocess.PIPE)
+            content = result.stdout.decode('utf-8')
+            # Check if the cron job runs every day or at a specific day and time
+            if '* * *' in content:
+                schedule = 'Daily'
+                match = re.match(r'^(\d{1,2})\s+(\d{1,2})', content)
+                if match:
+                    # Display the hours and minutes
+                    read_hours = match.group(2)
+                    read_minutes = match.group(1)
+                next_run_time_str = read_hours + ":" + read_minutes + " hrs"
+            else:
+                schedule = 'Weekly'
+                match = re.match(r'^(\d{1,2})\s+(\d{1,2}).*(mon|tue|wed|thu|fri|sat|sun)', content)
+                if match:
+                    # Display the hours and minutes
+                    read_hours = match.group(2)
+                    read_minutes = match.group(1)
+                    read_day = match.group(3)
+                next_run_time_str = read_hours + ":" + read_minutes + " hrs on " + read_day
+            # Pass the status, schedule, and next run time to the HTML template
+            service_status = 'Service Running: ' + schedule + " @ " + next_run_time_str
+        else:
+            service_status = 'Service Not Running '
+    except FileNotFoundError:
+        service_status = 'Service Not Running '
+    return service_status
+
+def short_to_long(day):
+    day_dict = {
+    'mon': 'Monday',
+    'tue': 'Tuesday',
+    'wed': 'Wednesday',
+    'thu': 'Thursday',
+    'fri': 'Friday',
+    'sat': 'Saturday',
+    'sun': 'Sunday'
+    }
+    long_day = day_dict.get(day.lower(), 'Unknown').capitalize()
+    return long_day
 
 #     ----------------------------- MAIN -----------------------------
 # code below for development purposes and testing only

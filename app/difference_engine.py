@@ -25,7 +25,8 @@ import re
 import datetime
 import time
 import pytz
-from configuration_template import DNAC_IP, DNAC_FQDN
+from configuration_template import DNAC_IP, DNAC_FQDN, APP_DIRECTORY, COMPLIANCE_STORE
+from prime_compliance_dictionary import all_files_into_dict
 from report_module import pdf_converter, json_export
 from showrunsection import show_run_section, show_run_section_array, show_run_headers
 
@@ -277,6 +278,141 @@ def external_audit(cfg, data):
     # create a diff_list that will include all the lines that are non compliant
     violation_list = []
     violation_output = ''
+    for i in range(0, (len(data)-1)):
+        instance = []
+        instance_output = []
+        if isinstance(data[i], list):
+            config_section = []
+            output = False
+            for sub_dict in data[i]:
+                scope = (sub_dict['Scope'])
+                operator = (sub_dict['Operator'])
+                value = (sub_dict['Value'])
+                if value.startswith("*"):
+                    value = "." + value[1:]
+                elif value.startswith("^*"):
+                    value = "^." + value[2:]
+                if "(.*)" in value:
+                    value = value.replace('(.*)', '.*')
+                message = (sub_dict['Message'])
+                regex = re.compile(value)
+                if scope == "SUBMODE_CONFIG":
+                    config_section = show_run_section(cfg, regex)
+                    config_subsections = show_run_section_array(config_section)
+                    #print("\nTest: "+str(i)+"\nsection: ",config_section,"\nsubsection: ",config_subsections)
+                    #print("\n\nsearch: ",regex)
+                    if config_section != "":
+                        output = True
+                        carryonflag = True
+                    else:
+                        output = True
+                        carryonflag = False
+                    #print("\n\n",output,carryonflag)
+                elif ((scope == "PREVIOUS_SUBMODE_CONFIG") and (len(config_section)!=0)):
+                    for subsection in config_subsections:
+                        #print(subsection)
+                        if regex.search(subsection):
+                            if operator == "MATCHES_EXPRESSION" or operator == "CONTAINS":
+                                output = True
+                                carryonflag == True
+                                #print("1")
+                            elif operator == "DOES_NOT_MATCH":
+                                output = False
+                                carryonflag = False
+                                #print("2")
+                                #print(regex.search(subsection))
+                                #print(subsection)
+                                instance.append(regex.search(subsection))
+                                instance_output.append(subsection)
+                        else:
+                            if operator == "MATCHES_EXPRESSION" or operator == "CONTAINS":
+                                output = False
+                                carryonflag = False
+                                #print("3")
+                                #print(regex.search(subsection))
+                                #print(subsection)
+                                instance.append(regex.search(subsection))
+                                instance_output.append(subsection)
+                            elif operator == "DOES_NOT_MATCH":
+                                output = True
+                                carryonflag == True
+                                #print("4")
+                    #print(output,carryonflag)
+            if output == True:
+                violation_output = "test "+str(i)+": >> Passed"
+            elif output == False:
+                #violation_output = "test "+str(i)+": >> search: '"+value+"' >> Violation Msg: "+message
+                violation_output = "test "+str(i)+": >> Violation Msg: "+message
+                if (len(instance)>0):
+                    violation_output = violation_output + "\n\nInstances:"
+                    if (len(instance)>1):
+                        for n in range(0,len(instance)-1):
+                            if str(instance[n]) != "None":
+                                #violation_output = violation_output + "\n" + str(instance[n])
+                                violation_output = violation_output + "\n" + str(instance_output[n])
+                    else:
+                        if str(instance):
+                            #violation_output = violation_output + "\n" + str(instance)
+                            violation_output = violation_output + "\n" + str(instance_output[0])
+                    violation_output = violation_output + "\n"
+            violation_list.append(violation_output)
+        if isinstance(data[i], dict):
+            output = True
+            scope = data[i]['Scope']
+            operator = data[i]['Operator']
+            value = data[i]['Value']
+            if value.startswith("*"):
+                value = "." + value[1:]
+            elif value.startswith("^*"):
+                value = "^." + value[2:]
+            if "(.*)" in value:
+                value = value.replace('(.*)', '.*')
+            regex = re.compile(value)
+            message = data[i]['Message']
+            # for loop for a match in all_config
+            for line in cfg:
+                if regex.search(line):
+                    if operator == "MATCHES_EXPRESSION" or operator == "CONTAINS":
+                        output = True
+                        break
+                    else:
+                        output = False
+                elif value in line:
+                    if operator == "MATCHES_EXPRESSION" or operator == "CONTAINS":
+                        output = True
+                        break
+                    else:
+                        output = False
+                else:
+                    if operator == "MATCHES_EXPRESSION" or operator == "CONTAINS":
+                        output = False
+                    else:
+                        output = True
+                        break                    
+            if output == True:
+                violation_output = "test "+str(i)+": >> Passed"
+            elif output == False:
+                #violation_output = "test "+str(i)+": >> search: '"+value+"' >> Violation Msg: "+message
+                violation_output = "test "+str(i)+": >> Violation Msg: "+message
+            violation_list.append(violation_output)
+    return violation_list
+
+# This function will compare multiple rules against one config passed to it in API
+def external_audit_api(cfg):
+    """
+    we will use the audit dictionary created to compare 
+    against the configuration presented to determine if the
+    configuration has violations
+    :param cfg: configuration file path and filename
+    :param audit_dict: imported dictionary of audit rules
+    :return: text with config lines that violated in a dictionary
+    """
+    # create a diff_list that will include all the lines that are non compliant
+    violation_list = []
+    violation_output = ''
+    COMPLIANCE_DIRECTORY = "IOSXE"
+    COMP_CHECKS = os.path.join(APP_DIRECTORY, COMPLIANCE_STORE, COMPLIANCE_DIRECTORY)
+    data = all_files_into_dict(COMP_CHECKS)    
     for i in range(0, (len(data)-1)):
         instance = []
         instance_output = []

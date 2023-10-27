@@ -4,11 +4,18 @@
     <meta charset="utf-8">
     <title>Compliance Lite - Service Scheduler</title>
   </head>
+  
+  <script>
+    function disableButton() {
+      document.getElementById("ServiceButton").disabled = true;
+    }
+  </script>
+  
   <body>
     {% extends "template.html" %}
     {% block content %}
 
-    <h1 style="margin-left: 40px">{% block title %} Compliance Lite Scheduling Setup {% endblock %}</h1>
+    <h1 style="margin-left: 40px">{% block title %} Scheduling Settings {% endblock %}</h1>
     <div style="display: flex; align-items: center">
       <h4 style="margin-left: 50px; padding-right: 30px;">{% print(message) %}</h4>
       {% if "Service Running" in message  %}
@@ -56,7 +63,7 @@
             </div>
 
             <br><p></p>
-            <button type="submit">Schedule</button>
+            <button id="ServiceButton" type="submit" {% if disable_service != "enable" %}disabled{% endif %}>Schedule</button>
           </form>
         </font>
         </nav></strong>

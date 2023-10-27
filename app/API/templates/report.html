@@ -3,6 +3,13 @@
   <head>
     <title>Compliance Lite - Reports</title>
   </head>
+
+  <script>
+    function disableButton() {
+      document.getElementById("Report").disabled = true;
+    }
+  </script>
+
   <body>
     {% extends "template.html" %}
     {% block content %}
@@ -20,7 +27,7 @@
       </p>  
       <form method="post" style="margin-left: 50px">
         <p> Click submit to run a new report </p>
-        <button type="submit">Create Report</button>
+        <button id="Report" type="submit" {% if disable_service != "enable" %}disabled{% endif %}>Create Report</button>
       </form>
 
   {% endblock %}

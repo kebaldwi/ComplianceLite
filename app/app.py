@@ -8,77 +8,26 @@ import shutil
 import pytz
 import zipfile
 import io
-from subprocess import PIPE
+import re
+import os
+import xml.etree.ElementTree as ET
 from dotenv import load_dotenv
+from subprocess import PIPE
 from configuration_template import DNAC_URL, DNAC_PASS, DNAC_USER, SMTP_EMAIL, SMTP_PASS, SMTP_SERVER, SMTP_PORT, SMTP_FLAG, NOTIFICATION_EMAIL
 from compliance_mon import *
 from difference_engine import *
 from system_setup import *
 from version import *
+from rule_manager import *
+from compliance_summary import *
 load_dotenv()
 
 try:
     from API import (app,
                      api,
                      HealthController,docs,
-                     DNACenterCompliance,
+                     ComplianceLite,
                      WeatherController,
-                     DNACTokenController,
-                     get_all_device_infoController,
-                     get_device_infoController,
-                     delete_deviceController,
-                     get_project_idController,
-                     get_project_infoController,
-                     create_commit_templateController,
-                     commit_templateController,
-                     update_commit_templateController,
-                     upload_templateController,
-                     delete_templateController,
-                     get_all_template_infoController,
-                     get_template_name_infoController,
-                     get_template_idController,
-                     get_template_id_versionController,
-                     get_template_id_versionController,
-                     deploy_templateController,
-                     check_template_deployment_statusController,
-                     get_client_infoController,
-                     locate_client_ipController,
-                     get_device_id_nameController,
-                     get_device_statusController,
-                     get_device_management_ipController,
-                     get_device_id_snController,
-                     get_device_locationController,
-                     create_siteController,
-                     get_site_idController,
-                     create_buildingController,
-                     get_building_idController,
-                     create_floorController,
-                     get_floor_idController,
-                     assign_device_sn_buildingController,
-                     assign_device_name_buildingController,
-                     get_geo_infoController,
-                     sync_deviceController,
-                     check_task_id_statusController,
-                     check_task_id_outputController,
-                     create_path_traceController,
-                     get_path_trace_infoController,
-                     check_ipv4_network_interfaceController,
-                     get_device_info_ipController,
-                     get_legit_cli_command_runnerController,
-                     get_content_file_idController,
-                     get_output_command_runnerController,
-                     get_all_configsController,
-                     get_device_configController,
-                     check_ipv4_addressController,
-                     check_ipv4_address_configsController,
-                     check_ipv4_duplicateController,
-                     get_device_healthController,
-                     pnp_get_device_countController,
-                     pnp_get_device_listController,
-                     pnp_claim_ap_siteController,
-                     pnp_delete_provisioned_deviceController,
-                     pnp_get_device_infoController,
-                     get_physical_topologyController
                      )
 except Exception as e:
     print("Modules are Missing : {} ".format(e))
@@ -87,6 +36,10 @@ messages=["howdy"]
 
 os_setup()
 data_library(CONFIG_PATH,CONFIG_STORE,REPORT_STORE,JSON_STORE,SYSTEM_STORE)
+
+if os.path.isfile('/app/DNAC-CompMon-Data/System/cronjob'):
+    # Run the shell script
+    subprocess.run(['bash', 'restart_cronjob.sh'])
 
 @app.route("/")
 def home():
@@ -114,9 +67,21 @@ def system_reset():
         # Add a two-second pause
         time.sleep(2)
         subprocess.run(['bash', 'restart_app.sh'])
+        import_status = PRIME_import_status()
+        if import_status != "Not Imported":
+            # Delete prime compliance rules
+            directory_path = '/app/PrimeComplianceChecks'
+            directories = [name for name in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, name))]
+            for subdirectory in directories:
+                subdirectory_path = os.path.join(directory_path, subdirectory)
+            # Call the bash script to shut down and delete the cron job
+            subprocess.run(['bash', 'delete_rules.sh', subdirectory_path])
+        if os.path.isfile('/app/DNAC-CompMon-Data/System/cronjob'):
+            # Run the shell script
+            subprocess.run(['bash', 'delete_cronjob.sh'])
         # Add a two-second pause
         time.sleep(2)
-        return redirect(url_for('home')) 
+        return redirect(url_for('home'))
     return render_template("system_resets.html", version=version)
 
 @app.route("/configure_system", methods=['GET', 'POST'])
@@ -229,12 +194,25 @@ def configure_rules():
                 with zipfile.ZipFile(io.BytesIO(uploaded_file.read())) as zip_ref:
                     zip_ref.extractall(compliance_files)
                 outcome = "SUCCESS"
-                return render_template("configure_rules.html")
+                import_status = PRIME_import_status()
+                return render_template("configure_rules.html", import_status=import_status, version=version)
             else:
                 outcome = "FAILURE"
         else:
             outcome = "FAILURE"
-    return render_template("configure_rules.html", version=version)
+    import_status = PRIME_import_status()
+    return render_template("configure_rules.html", import_status=import_status, version=version)
+
+@app.route('/rule_delete', methods=['POST'])
+def rule_delete():
+    directory_path = '/app/PrimeComplianceChecks'
+    directories = [name for name in os.listdir(directory_path) if os.path.isdir(os.path.join(directory_path, name))]
+    for subdirectory in directories:
+        subdirectory_path = os.path.join(directory_path, subdirectory)
+    # Call the bash script to shut down and delete the cron job
+    subprocess.run(['bash', 'delete_rules.sh', subdirectory_path]) 
+    # Redirect to a success page or display a success message
+    return redirect(url_for('status')) 
 
 @app.route("/report", methods=['GET', 'POST'])
 #modified to use existing code
@@ -245,12 +223,26 @@ def serve_report():
     message = "Reports..."
     result = subprocess.run(["ls", "-l", "/app/DNAC-CompMon-Data/Reports/", "/dev/null"], stdout=PIPE, stderr=PIPE)
     contents = result.stdout.decode('utf8')
-    return render_template('report.html', message=message, reports=contents.split("total")[1], version=version)
+    dnac_status = DNAC_status_app(DNAC_IP,DNAC_USER,DNAC_PASS)
+    import_status = PRIME_import_status()
+    if dnac_status != "Connected" and import_status == "Not Imported":
+        disable_service = "disable"
+    else:
+        disable_service = "enable"    
+    return render_template('report.html', message=message, reports=contents.split("total")[1],disable_service=disable_service, version=version)
 
 @app.route('/download/<path:filename>')
 def download_file(filename):
     # specify the path to the external directory
-    external_directory = '/app/DNAC-CompMon-Data/Reports/'
+    if '.pdf' in filename:
+        external_directory = '/app/DNAC-CompMon-Data/Reports/'
+    elif '.xml' in filename:
+        parent_directory = "/app/PrimeComplianceChecks"
+        subdirectory = PRIME_import_status()
+        # Create the full path by joining the parent directory, subdirectory, and filename
+        external_directory = os.path.join(parent_directory, subdirectory)
+    elif '.txt' in filename:
+        external_directory = '/app/DNAC-CompMon-Data/Configs/'
     # use send_from_directory to serve the file
     return send_from_directory(external_directory, filename, as_attachment=True)
 
@@ -275,13 +267,14 @@ def scheduler_app():
                 next_run_time_str = read_hours + ":" + read_minutes + " hrs"
             else:
                 schedule = 'Weekly'
-                match = re.match(r'^(\d{1,2})\s+(\d{1,2}).*(mon|tue|wed|thu|fri)', content)
+                match = re.match(r'^(\d{1,2})\s+(\d{1,2}).*(mon|tue|wed|thu|fri|sat|sun)', content)
                 if match:
                     # Display the hours and minutes
                     read_hours = match.group(2)
                     read_minutes = match.group(1)
                     read_day = match.group(3)
-                next_run_time_str = read_hours + ":" + read_minutes + " hrs on " + read_day
+                    display_day = short_to_long(read_day)
+                next_run_time_str = read_hours + ":" + read_minutes + " hrs on " + display_day
             # Pass the status, schedule, and next run time to the HTML template
             message = 'Service Running: ' + schedule + " @ " + next_run_time_str
         else:
@@ -318,7 +311,13 @@ def scheduler_app():
             subprocess.run(['bash', 'setup_cronjob.sh', schedule_type, hour_output, minute_output, truncated_day])
             # Add a three-second pause
             time.sleep(3)
-    return render_template("scheduler.html",time_options=time_options,days_of_week=days_of_week,message=message, version=version)
+    dnac_status = DNAC_status_app(DNAC_IP,DNAC_USER,DNAC_PASS)
+    import_status = PRIME_import_status()
+    if dnac_status != "Connected" and import_status == "Not Imported":
+        disable_service = "disable"
+    else:
+        disable_service = "enable"
+    return render_template("scheduler.html",time_options=time_options,days_of_week=days_of_week,message=message,disable_service=disable_service, version=version)
 
 @app.route('/delete', methods=['POST'])
 def delete():
@@ -327,40 +326,44 @@ def delete():
     # Redirect to a success page or display a success message
     return redirect(url_for('status')) 
 
-@app.route('/devpage')
-def display_cron_job():
-    # Check if the cron job is configured
-    try:
-        result = subprocess.run(['service', 'cron', 'status'], stdout=subprocess.PIPE)
-        status = result.stdout.decode('utf-8').strip()
-        # If the cron service is running, get the next scheduled run time
-        if 'not' not in status:
-            result = subprocess.run(['crontab', '-l'], stdout=subprocess.PIPE)
-            content = result.stdout.decode('utf-8')
-            # Check if the cron job runs every day or at a specific day and time
-            if '* * *' in content:
-                schedule = 'Daily'
-                match = re.match(r'^(\d{1,2})\s+(\d{1,2})', content)
-                if match:
-                    # Display the hours and minutes
-                    read_hours = match.group(2)
-                    read_minutes = match.group(1)
-                next_run_time_str = read_hours + ":" + read_minutes
-            else:
-                schedule = 'Weekly'
-                match = re.match(r'^(\d{1,2})\s+(\d{1,2}).*(mon|tue|wed|thu|fri)', content)
-                if match:
-                    # Display the hours and minutes
-                    read_hours = match.group(2)
-                    read_minutes = match.group(1)
-                    read_day = match.group(3)
-                next_run_time_str = read_hours + ":" + read_minutes + " on " + read_day
-            # Pass the status, schedule, and next run time to the HTML template
-            return render_template('devpage.html', status='Running', schedule=schedule, next_run_time=next_run_time_str)
-        else:
-            return render_template('devpage.html', status='Not running', schedule='', next_run_time='')
-    except FileNotFoundError:
-        return render_template('devpage.html', status='Not Configured', schedule='', next_run_time='')
+@app.route('/devices')
+def device_list():
+    result = subprocess.run(["ls", "-l", "/app/DNAC-CompMon-Data/Configs/", "/dev/null"], stdout=PIPE, stderr=PIPE)
+    content = result.stdout.decode('utf8')    
+    return render_template('devices.html', content=content, version=version)
+
+# Define a route to display the table of XML file information
+@app.route("/rule_manager")
+def display_xml_files():
+    # Get a list of all XML files in the directory
+    parent_directory = "/app/PrimeComplianceChecks"
+    subdirectory = PRIME_import_status()
+    if subdirectory == "Not Imported":
+        return redirect('configure_rules')
+    file_path = os.path.join(parent_directory, subdirectory)
+    xml_files = [f for f in os.listdir(file_path) if f.endswith(".xml")]
+    # Parse each XML file and store the title, description, and filename in a list of dictionaries
+    xml_data = []
+    for xml_file in xml_files:
+        xml_path = os.path.join(file_path, xml_file)
+        title, description = parse_xml_file(xml_path)
+        xml_data.append({"title": title, "description": description, "filename": xml_file})
+    # Render the template with the list of XML file information
+    return render_template("rule_manager.html", rules=subdirectory, xml_data=xml_data, version=version)
+
+# Define a route to delete an XML file
+@app.route("/delete_rule", methods=["POST"])
+def delete_xml_file():
+    # Get XML directory
+    parent_directory = "/app/PrimeComplianceChecks"
+    subdirectory = PRIME_import_status()
+    file_path = os.path.join(parent_directory, subdirectory)
+    # Get the filename of the XML file to delete from the form data
+    filename = request.form["filename"]
+    # Delete the XML file from the directory
+    os.remove(os.path.join(file_path, filename))
+    # Redirect back to the main page
+    return redirect("/")
 
 @app.route("/status")
 def status():
@@ -371,7 +374,37 @@ def status():
     response = requests.get(url)
     our_response_content = response.content.decode('utf8')
     proper_json_response = json.loads(our_response_content)
-    return render_template("status.html", testing=proper_json_response, DNAC_URL=DNAC_URL, DNAC_USER=DNAC_USER, messages=messages, contents=contents, version=version)
+    status = DNAC_status_app(DNAC_IP,DNAC_USER,DNAC_PASS)
+    smtp_status = SMTP_status_app(SMTP_EMAIL,SMTP_PASS,SMTP_SERVER,SMTP_PORT)
+    import_status = PRIME_import_status()
+    service_status = scheduler_status_app()
+    return render_template("status.html", testing=proper_json_response, status=status, smtp_status=smtp_status, time_zone=TIME_ZONE, import_status=import_status, service_status=service_status, contents=contents, version=version)
+
+config_directory = os.path.join(APP_DIRECTORY, CONFIG_STORE)
+
+@app.route('/summary_report')
+def summary_report():
+    json_directory = os.path.join(APP_DIRECTORY, JSON_STORE)
+    recent_filenames = get_recent_files(json_directory)
+    data = []
+    total_passed = 0
+    total_failed = 0 
+    for filename in recent_filenames:
+        if ".json" in filename:
+            with open(os.path.join(json_directory, filename)) as f:
+                json_data = json.load(f)
+                hostname = json_data['device']['name']
+                timestamp_str = json_data['timestamp']
+                date_str, time_str = timestamp_str.split(' ')[0], timestamp_str.split(' ')[-1]
+                date = date_str + ' ' + time_str
+                tests = json_data['tests']
+                passed_tests = sum(1 for test in tests if test['result'] == 'Passed')
+                failed_tests = sum(1 for test in tests if test['result'] != 'Passed')
+                total_passed = total_passed + passed_tests
+                total_failed = total_failed + failed_tests
+                total_tests = len(tests)
+                data.append((hostname, date, passed_tests, failed_tests, total_tests))
+    return render_template('summary_report.html', total_passed=total_passed, total_failed=total_failed, data=data, version=version)    
 
 @app.route("/weather")
 def weather():
@@ -395,176 +428,11 @@ def weather():
 api.add_resource(HealthController, '/health_check')
 docs.register(HealthController)
 
-api.add_resource(DNACenterCompliance, '/DNA_Center_Compliance_Lite')
-docs.register(DNACenterCompliance)
+api.add_resource(ComplianceLite, '/Compliance_Lite')
+docs.register(ComplianceLite)
 
 api.add_resource(WeatherController, '/check_weather')
 docs.register(WeatherController)
-
-api.add_resource(DNACTokenController, '/get_dnac_token')
-docs.register(DNACTokenController)
-
-api.add_resource(get_all_device_infoController, '/get_all_device_info')
-docs.register(get_all_device_infoController)
-
-api.add_resource(get_device_infoController, '/get_device_info')
-docs.register(get_device_infoController)
-
-api.add_resource(delete_deviceController, '/delete_device')
-docs.register(delete_deviceController)
-
-api.add_resource(get_project_idController, '/get_project_id')
-docs.register(get_project_idController)
-
-api.add_resource(get_project_infoController, '/get_project_info')
-docs.register(get_project_infoController)
-
-api.add_resource(create_commit_templateController, '/create_commit_template')
-docs.register(create_commit_templateController)
-
-api.add_resource(commit_templateController, '/commit_template')
-docs.register(commit_templateController)
-
-api.add_resource(update_commit_templateController, '/update_commit_template')
-docs.register(update_commit_templateController)
-
-api.add_resource(upload_templateController, '/upload_template')
-docs.register(upload_templateController)
-
-api.add_resource(delete_templateController, '/delete_template')
-docs.register(delete_templateController)
-
-api.add_resource(get_all_template_infoController, '/get_all_template_info')
-docs.register(get_all_template_infoController)
-
-api.add_resource(get_template_name_infoController, '/get_template_name_info')
-docs.register(get_template_name_infoController)
-
-api.add_resource(get_template_idController, '/get_template_id')
-docs.register(get_template_idController)
-
-api.add_resource(get_template_id_versionController, '/get_template_id_version')
-docs.register(get_template_id_versionController)
-
-api.add_resource(deploy_templateController, '/deploy_template')
-docs.register(deploy_templateController)
-
-api.add_resource(check_template_deployment_statusController, '/check_template_deployment_status')
-docs.register(check_template_deployment_statusController)
-
-api.add_resource(get_client_infoController, '/get_client_info')
-docs.register(get_client_infoController)
-
-api.add_resource(locate_client_ipController, '/locate_client_ip')
-docs.register(locate_client_ipController)
-
-api.add_resource(get_device_id_nameController, '/get_device_id_name')
-docs.register(get_device_id_nameController)
-
-api.add_resource(get_device_statusController, '/get_device_status')
-docs.register(get_device_statusController)
-
-api.add_resource(get_device_management_ipController, '/get_device_management_ip')
-docs.register(get_device_management_ipController)
-
-api.add_resource(get_device_id_snController, '/get_device_id_sn')
-docs.register(get_device_id_snController)
-
-api.add_resource(get_device_locationController, '/get_device_location')
-docs.register(get_device_locationController)
-
-api.add_resource(create_siteController, '/create_site')
-docs.register(create_siteController)
-
-api.add_resource(get_site_idController, '/get_site_id')
-docs.register(get_site_idController)
-
-api.add_resource(create_buildingController, '/create_building')
-docs.register(create_buildingController)
-
-api.add_resource(get_building_idController, '/get_building_id')
-docs.register(get_building_idController)
-
-api.add_resource(create_floorController, '/create_floor')
-docs.register(create_floorController)
-
-api.add_resource(get_floor_idController, '/get_floor_id')
-docs.register(get_floor_idController)
-
-api.add_resource(assign_device_sn_buildingController, '/assign_device_sn_building')
-docs.register(assign_device_sn_buildingController)
-
-api.add_resource(assign_device_name_buildingController, '/assign_device_name_building')
-docs.register(assign_device_name_buildingController)
-
-api.add_resource(get_geo_infoController, '/get_geo_info')
-docs.register(get_geo_infoController)
-
-api.add_resource(sync_deviceController, '/sync_device')
-docs.register(sync_deviceController)
-
-api.add_resource(check_task_id_statusController, '/check_task_id_status')
-docs.register(check_task_id_statusController)
-
-api.add_resource(check_task_id_outputController, '/check_task_id_output')
-docs.register(check_task_id_outputController)
-
-api.add_resource(create_path_traceController, '/create_path_trace')
-docs.register(create_path_traceController)
-
-api.add_resource(get_path_trace_infoController, '/get_path_trace_info')
-docs.register(get_path_trace_infoController)
-
-api.add_resource(check_ipv4_network_interfaceController, '/check_ipv4_network_interface')
-docs.register(check_ipv4_network_interfaceController)
-
-api.add_resource(get_device_info_ipController, '/get_device_info_ip')
-docs.register(get_device_info_ipController)
-
-api.add_resource(get_legit_cli_command_runnerController, '/get_legit_cli_command_runner')
-docs.register(get_legit_cli_command_runnerController)
-
-api.add_resource(get_content_file_idController, '/get_content_file_id')
-docs.register(get_content_file_idController)
-
-api.add_resource(get_output_command_runnerController, '/get_output_command_runner')
-docs.register(get_output_command_runnerController)
-
-api.add_resource(get_all_configsController, '/get_all_configs')
-docs.register(get_all_configsController)
-
-api.add_resource(get_device_configController, '/get_device_config')
-docs.register(get_device_configController)
-
-api.add_resource(check_ipv4_addressController, '/check_ipv4_address')
-docs.register(check_ipv4_addressController)
-
-api.add_resource(check_ipv4_address_configsController, '/check_ipv4_address_configs')
-docs.register(check_ipv4_address_configsController)
-
-api.add_resource(check_ipv4_duplicateController, '/check_ipv4_duplicate')
-docs.register(check_ipv4_duplicateController)
-
-api.add_resource(get_device_healthController, '/get_device_health')
-docs.register(get_device_healthController)
-
-api.add_resource(pnp_get_device_countController, '/pnp_get_device_count')
-docs.register(pnp_get_device_countController)
-
-api.add_resource(pnp_get_device_listController, '/pnp_get_device_list')
-docs.register(pnp_get_device_listController)
-
-api.add_resource(pnp_claim_ap_siteController, '/pnp_claim_ap_site')
-docs.register(pnp_claim_ap_siteController)
-
-api.add_resource(pnp_delete_provisioned_deviceController, '/pnp_delete_provisioned_device')
-docs.register(pnp_delete_provisioned_deviceController)
-
-api.add_resource(pnp_get_device_infoController, '/pnp_get_device_info')
-docs.register(pnp_get_device_infoController)
-
-api.add_resource(get_physical_topologyController, '/get_physical_topology')
-docs.register(get_physical_topologyController)
 
 if __name__ == '__main__':
     app.run(threaded=True)

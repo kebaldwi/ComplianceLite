@@ -8,13 +8,118 @@
     {% extends "template.html" %}
     {% block content %}
     
-    <h1 style="margin-left: 40px"> Compliance Lite </h1>
-    <p style="margin-left: 50px"> API Check: {% print(testing) %} </p>
-    <p style="margin-left: 50px"> {% for item in contents.split("\n") %}
-    {% print(item) %} <br>
-    {% endfor %}
-    </p>
-      
+    <style>
+      .health-in {
+        color: green;
+      }
+      .health-half {
+        color: orange;
+      }
+      .health-out {
+        color: red;
+      }
+      </style>
+    
+    <h1 style="margin-left: 40px"> Compliance Lite - Status </h1>
+    <table>
+      <tr>
+        <td style="padding-left: 50px;"> System Readiness:</td>
+        <td>
+          {% if status[0] == "Connected" and smtp_status[0] == "Connected" and smtp_status[1] == "ValidAUTH" and import_status != "": %}
+            <span class="health-in">●</span> System Ready
+          {% elif status[0] == "Connected" and import_status != "Not Imported": %}
+            <span class="health-half">●</span> Compliance without Notification
+          {% else: %}
+            <span class="health-out">●</span> System Not Ready
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-left: 50px;"> API Check:</td>
+        <td>
+          {% if "APi are working fine" in testing.message: %}
+            <span class="health-in">●</span> API Healthy
+          {% else: %}
+            <span class="health-out">●</span> API Not Operational
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-left: 50px;"> Catalyst (DNA) Center:</td>
+        <td>
+          {% if status[0] == "Connected": %}
+            <span class="health-in">●</span> Connected
+          {% else: %}
+            <span class="health-out">●</span> Not Connected
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-left: 50px;"> Catalyst (DNA) Center IP:</td>
+        <td>
+          {% if status[4] == "ValidIP" and status[3] == "ValidPing" and status[2] == "ValidDNS": %}
+            <span class="health-in">●</span> Server Up
+          {% else: %}
+            <span class="health-out">●</span> Server Down 
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-left: 50px;"> Catalyst (DNA) Center Credentials:</td>
+        <td>
+          {% if status[0] == "Connected" and status[1] == "ValidCred": %}
+            <span class="health-in">●</span> Credentials Pass
+          {% else: %}
+            <span class="health-out">●</span> Credentials Fail
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-left: 50px;"> SMTP Connection:</td>
+        <td>
+          {% if smtp_status[0] == "Connected": %}
+            <span class="health-in">●</span> Connected
+          {% else: %}
+            <span class="health-out">●</span> Not Connected
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-left: 50px;"> SMTP Settings:</td>
+        <td>
+            {% if smtp_status[0] == "Connected" and smtp_status[1] == "ValidAUTH": %}
+              <span class="health-in">●</span> Credentials Pass
+            {% else: %}
+              <span class="health-out">●</span> Credentials Fail
+            {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-left: 50px;"> The current Time Zone:</td>
+        <td><span class="health-in">●</span> {{ time_zone }}</td>
+      </tr>
+      <tr>
+        <td style="padding-left: 50px;"> Imported Rules:</td>
+        <td>
+          {% if import_status != "Not Imported": %}
+            <span class="health-in">●</span> Rules Imported - {{ import_status }}
+          {% else: %}
+            <span class="health-out">●</span> Rules Not Imported
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding-left: 50px;">Compliance Lite Service:</td>
+        <td>
+          {% if "Service Running" in service_status : %}
+            <span class="health-in">●</span> Status Running
+          {% else: %}
+            <span class="health-out">●</span> Status Not Running
+          {% endif %}
+        </td>
+      </tr>
+    </table>
+          
     {% endblock %}
   </body>
 </html>

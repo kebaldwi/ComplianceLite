@@ -1,14 +1,31 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
+  <head>
+    <title>Compliance Lite - Discovered Devices</title>
+  </head>
+
+  <script>
+    function disableButton() {
+      document.getElementById("Report").disabled = true;
+    }
+  </script>
+
+  <body>
     {% extends "template.html" %}
-    {% block content %}    
-    <h1 style="margin-left: 40px">Compliance Lite - Devices</h1>
-    <p style="margin-left: 50px"> All DNAC Devices... </p>
+    {% block content %}
+
+    <h1 style="margin-left: 40px">Compliance Lite - Configuration Archive</h1>
+    <p style="margin-left: 50px"> The devices below were discovered and configs were imported. </p>
     <p style="margin-left: 50px">
-    {% for item in message %}
-    {% print(item['hostname']) %} </br>
-    {% endfor %}
+      {% for item in content.split("\n") %}
+        {% for thing in item.split(" ") %}
+          {% if (".txt" in thing) and ("placeholder" not in thing) and ("temp_run_config" not in thing) %}
+            <a href="/download/{% print(thing) %} " target="_blank">{% print(thing) %}</a></br>
+          {% endif %}
+        {% endfor %}
+      {% endfor %}
     </p>
+
     {% endblock %}
   </body>
 </html>

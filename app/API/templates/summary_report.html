@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <title>Compliance Lite - Summary Report</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+
+  <script>
+    function disableButton() {
+      document.getElementById("Report").disabled = true;
+    }
+  </script>
+
+  <style>
+    .container {
+      display: flex;
+      margin-left: 40px;
+    }
+
+    #container-a {
+      width: 250px;
+      height: 250px;
+    }
+    
+    #container-b {
+      width: 500px;
+      height: 300px;
+    }
+    
+    #pieChart {
+      width: 100%;
+      height: 100%;
+    }
+    
+    #barChart {
+      width: 100%;
+      height: 100%;
+    }    
+
+    table {
+      margin-top: 10px;
+    }
+  </style>
+
+  <body>
+    {% extends "template.html" %}
+    {% block content %}
+
+    <h1 style="margin-left: 40px">Compliance Lite - Summary Dashboard</h1>
+    
+    <div class="container">
+      <div id="container-a">
+        <canvas id="pieChart"></canvas>
+        <p style="text-align: center; margin-top: 5px;">Percentages</p>
+      </div>
+      <div id="container-b">
+        <canvas id="barChart"></canvas>
+        <p style="text-align: center; margin-top: 5px;">Overall Totals</p>
+      </div>
+    </div>
+  
+    <table style="margin-left: 60px">
+      <thead>
+        <tr>
+          <th>Device Name</th>
+          <th>Last Checked</th>
+          <th>Rules Passed</th>
+          <th>Rules Failed</th>
+          <th>Total Tested</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data %}
+          <tr>
+            <td>{{ row[0] }}</td>
+            <td>{{ row[1] }}</td>
+            <td style="text-align: center;">{{ row[2] }}</td>
+            <td style="text-align: center;">{{ row[3] }}</td>
+            <td style="text-align: center;">{{ row[4] }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>    
+
+    <script>
+      // Get the passed and failed test data from Flask using Jinja templating
+      var passedTests = {{ total_passed }};
+      var failedTests = {{ total_failed }};
+      // Calculate the total number of tests
+      var totalTests = passedTests + failedTests;
+      // Calculate the percentages of passed and failed tests
+      var passedPercentage = Math.round((passedTests / totalTests) * 100);
+      var failedPercentage = Math.round((failedTests / totalTests) * 100);
+      // Get a reference to the canvas elements
+      var pieCtx = document.getElementById('pieChart').getContext('2d');
+      var barCtx = document.getElementById('barChart').getContext('2d');
+      // Create a new Chart.js pie chart
+      var pieChart = new Chart(pieCtx, {
+        type: 'pie',
+        data: {
+          labels: ['Passed', 'Failed'],
+          datasets: [{
+            data: [passedPercentage, failedPercentage],
+            backgroundColor: ['#8BC34A', '#FF7F6F']
+          }]
+        },
+        options: {
+          responsive: false,
+          tooltips: {
+            callbacks: {
+              label: function(tooltipItem, data) {
+                var dataset = data.datasets[tooltipItem.datasetIndex];
+                var total = dataset.data.reduce(function(previousValue, currentValue, currentIndex, array) {
+                  return previousValue + currentValue;
+                });
+                var currentValue = dataset.data[tooltipItem.index];
+                var percentage = Math.floor(((currentValue / total) * 100) + 0.5);
+                return percentage + "%";
+              }
+            }
+          }
+        }
+      });
+      // Create a new Chart.js horizontal bar chart
+      var barChart = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Passed', 'Failed', 'Total'],
+          datasets: [{
+            data: [passedTests, failedTests, totalTests],
+            backgroundColor: ['#8BC34A', '#FF9800', '#03A9F4']
+          }]
+        },
+        options: {
+          responsive: false,
+          scales: {
+            xAxes: [{
+              ticks: {
+                beginAtZero:true
+              }
+            }]
+          }
+        }
+      });
+    </script>
+  
+    {% endblock %}
+  </body>
+</html>
+

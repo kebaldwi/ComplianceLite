@@ -4,11 +4,27 @@
     <meta charset="utf-8">
     <title>Compliance Lite - Import Rules</title>
   </head>
+
+  <script>
+    function disableButton() {
+      document.getElementById("UploadButton").disabled = true;
+    }
+  </script>
+  
   <body>
     {% extends "template.html" %}
     {% block content %}
 
-      <h1 style="margin-left: 40px">{% block title %} Import Rules from Prime {% endblock %}</h1>
+      <h1 style="margin-left: 40px">{% block title %} Prime Rules Import {% endblock %}</h1>
+      <div style="display: flex; align-items: center">
+        <h4 style="margin-left: 50px; padding-right: 60px;">Imported Rules: {{ import_status }}</h4>
+        {% if import_status != "Not Imported":  %}
+          <form action="/rule_delete" method="POST">
+            <button type="submit">Delete</button>
+          </form>
+        {% endif %}
+      </div>
+  
       <div align="left" class="container">
         <strong><nav>
         <font size="3px">
@@ -18,7 +34,7 @@
             <label for="file">File to be extracted:</label>
             <input type="file" name="file">
             <br><p></p>
-            <button type="submit">Upload</button>
+            <button id="UploadButton" type="submit" {% if import_status != "Not Imported" %}disabled{% endif %}>Upload</button>
         </form>
         </font>
         </nav></strong>
