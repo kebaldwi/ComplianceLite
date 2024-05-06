@@ -44,6 +44,15 @@ Compliance additions by Keith Baldwin & Bryn Pounds.
    - Cisco DNA Center
  - The config.py is the only file needed to be customized to match your environment may be modified via UI in container or via system_setup.py
 
+ ## To run this application as a Container in Docker follow these steps:
+ - Download the entire repo to your system using a git pull
+ - Ensure Docker is installed
+ - Change to the root of the files where the README.md file is
+ - Use the following commands:
+   1. docker build -t my-app .
+   2. docker run -d -p 8080:8080 --name ComplianceLite my-app 
+   3. browse to localhost:8080 in a browser
+
 ## Roadmap:
  - Automate roll back of non-compliant changes
  - Approval process for all compliant configuration changes
